@@ -29,7 +29,7 @@ export const actions: ActionTree<WishlistState, RootState> = {
         fromServer: true
       }
     })
-    commit(types.WISH_LOAD_WISH, storedItems)
+    commit(types.WISH_LOAD_WISH, !!storedItems ? storedItems : storedItemsCache)
   },
   loadFromCache () {
     const wishlistStorage = StorageManager.get('wishlist')
