@@ -17,12 +17,43 @@ const actions: ActionTree<WishlistState, RootState> = {
   async load ({ commit, getters, dispatch }, force: boolean = false) {
     if (!force && getters.isWishlistLoaded) return
     commit(types.SET_WISHLIST_LOADED)
-    const storedItems = await dispatch('loadFromCache')
+
+    const [storedItemsCache, storedItemsServer] = await Promise.all([
+      dispatch('loadFromCache'),
+      dispatch('loadFromServer')
+    ])
+
+    const storedItems = storedItemsServer.map(productFromServer => {
+      // Find approporiate product in the cache
+      const productFromCache = storedItemsCache.find(product => product.sku === productFromServer.sku) || {}
+      return {
+        ...productFromServer,
+        ...productFromCache,
+        fromServer: true
+      }
+    })
     commit(types.WISH_LOAD_WISH, storedItems)
   },
   loadFromCache () {
     const wishlistStorage = StorageManager.get('wishlist')
     return wishlistStorage.getItem('current-wishlist')
+  },
+  async loadFromServer ({ rootGetters }): Promise<Array<any>> {
+    if (rootGetters['user/isLoggedIn']) {
+      let { resultCode, result } = await Wishlist.Load(rootGetters['user/getToken'])
+      if (resultCode !== 200) {
+        rootStore.dispatch('notification/spawnNotification', {
+          type: 'error',
+          message: i18n.t("Couldn't load wishlist, sorry."),
+          action1: { label: i18n.t('OK') }
+        })
+      } else {
+        return result.wishlist_items.map(wishlistRecord => ({
+          ...wishlistRecord.product,
+          item_id: wishlistRecord.item_id
+        }))
+      }
+    }
   },
   async addItem ({ commit, rootGetters }, product): Promise<Boolean> {
 

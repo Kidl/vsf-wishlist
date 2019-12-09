@@ -16,7 +16,9 @@ export const IsOnWishlist = {
   },
   computed: {
     isOnWishlist () {
-      return this.$store.getters['wishlist/isOnWishlist'](this.product)
+      return this.$store.state['wishlist'].items
+        && this.$store.state['wishlist'].items
+        .some(product => product.sku === this.product.sku)
     }
   }
 }
