@@ -20,7 +20,7 @@ export const actions: ActionTree<WishlistState, RootState> = {
       dispatch('loadFromServer')
     ])
 
-    const storedItems = storedItemsServer.map(productFromServer => {
+    const storedItems = !!storedItemsServer && storedItemsServer.map(productFromServer => {
       // Find approporiate product in the cache
       const productFromCache = storedItemsCache.find(product => product.sku === productFromServer.sku) || {}
       return {
