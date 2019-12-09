@@ -93,8 +93,6 @@ module.exports = ({ config, db }) => {
     client.addMethods('wishlist', (restClient) => {
       var module = {};
 
-      console.log(req.query.token)
-
       module.get = function () {
         return restClient.get('/wishlist', req.query.token);
       }
