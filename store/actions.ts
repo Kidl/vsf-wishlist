@@ -89,7 +89,7 @@ export const actions: ActionTree<WishlistState, RootState> = {
         let parents: any = await quickSearchByQuery({
           query,
           start: 0,
-          size: skus.length,
+          size: 100,
           entityType: 'product',
           sort: '',
           storeCode: storeCode ? storeCode : null,
@@ -98,7 +98,7 @@ export const actions: ActionTree<WishlistState, RootState> = {
         })
 
         return result.wishlist_items.map(wishlistRecord => {
-          
+
           const parent = parents && parents.items && parents.items.find(parent =>
             parent.configurable_children
             && parent.configurable_children.some(children =>
@@ -107,10 +107,24 @@ export const actions: ActionTree<WishlistState, RootState> = {
             )
           )
 
+          if (!parent) {
+            return {
+              ...wishlistRecord.product,
+              item_id: wishlistRecord.item_id
+            }
+          }
+
           const children = parent.configurable_children.find(children =>
             children.sku === wishlistRecord.product.sku
             && children.color === +parent.clone_color_id
           )
+
+          if (!children) {
+            return {
+              ...wishlistRecord.product,
+              item_id: wishlistRecord.item_id
+            }
+          }
 
           return {
             ...mergeProductWithChild(parent, children),
@@ -144,6 +158,7 @@ export const actions: ActionTree<WishlistState, RootState> = {
     })
     return true
   },
+
   async removeItem ({ state, commit, rootGetters }, product): Promise<Boolean> {
     const storageProduct = state.items.find(p => p.sku === product.sku)
     if (rootGetters['user/isLoggedIn'] && storageProduct.item_id) {
@@ -158,5 +173,26 @@ export const actions: ActionTree<WishlistState, RootState> = {
       }
     }
     commit(types.WISH_DEL_ITEM, { product: storageProduct })
+  },
+
+  async removeAll ({ state, commit, rootGetters }): Promise<Boolean> {
+    const storageProducts = state.items
+
+    if (rootGetters['user/isLoggedIn']) {
+      let resultsCodes = await Wishlist.RemoveAll(
+        storageProducts.map(product => product.item_id),
+        rootGetters['user/getToken']
+      )
+      if (resultsCodes.some(({ resultCode }) => resultCode !== 200)) {
+        rootStore.dispatch('notification/spawnNotification', {
+          type: 'error',
+          message: i18n.t("Couldn't remove every item from the wishlist, sorry."),
+          action1: { label: i18n.t('OK') }
+        })
+        return false
+      }
+    }
+    commit(types.WISH_DEL_ALL_ITEMS)
   }
+
 }

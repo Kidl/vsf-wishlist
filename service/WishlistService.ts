@@ -28,6 +28,21 @@ export namespace Wishlist {
       silent: true
     });
 
+  export const RemoveAll = async (itemIds: Array<Number>, token: string): Promise<Array<Task>> => {
+    const promises = []
+    for (let itemId of itemIds) {
+      promises.push(TaskQueue.execute({
+        url: processLocalizedURLAddress(`${config.wishlist.endpoint}/remove/${itemId}/?token=${token}`),
+        payload: {
+          method: 'DELETE',
+          mode: 'cors'
+        },
+        silent: true
+      }))
+    }
+    return await Promise.all(promises)
+  }
+
   export const Load = (token: string): Promise<Task> => 
     TaskQueue.execute({
       url: processLocalizedURLAddress(`${config.wishlist.endpoint}?token=${token}`),
