@@ -15,6 +15,7 @@ const whishListPersistPlugin = (mutation, state) => {
       whishListStorage.setItem('current-wishlist', state.wishlist.items)
     }
   }
+
 }
 
 export default whishListPersistPlugin
