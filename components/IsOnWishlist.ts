@@ -18,7 +18,7 @@ export const IsOnWishlist = {
     isOnWishlist () {
       return this.$store.state['wishlist'].items
         && this.$store.state['wishlist'].items
-        .some(product => product.sku === this.product.sku)
+        .some(product => product.parentSku === this.product.parentSku.replace(new RegExp(`-${product.clone_color_id}$`), ''))
     }
   }
 }
