@@ -1,3 +1,7 @@
+import { optionLabel } from '@vue-storefront/core/modules/catalog/helpers/optionLabel';
+import { currentStoreView } from '@vue-storefront/core/lib/multistore';
+import { baseFilterProductsQuery } from '@vue-storefront/core/helpers';
+import { quickSearchByQuery } from './../../../../core/lib/search';
 import i18n from '@vue-storefront/i18n';
 import rootStore from '@vue-storefront/core/store';
 import { ActionTree } from 'vuex'
@@ -6,6 +10,32 @@ import RootState from '@vue-storefront/core/types/RootState'
 import WishlistState from '@vue-storefront/core/modules/wishlist/types/WishlistState'
 import { StorageManager } from '@vue-storefront/core/lib/storage-manager'
 import { Wishlist } from '../service/WishlistService'
+import config from 'config'
+
+function mergeProductWithChild(product: any, child: any) {
+  let name
+  if (product.clone_name) {
+    name = product.clone_name
+  } else {
+    name = `${product.name} ${optionLabel(rootStore.state.attribute, { attributeKey: 'color', optionId: +child.color })}`
+  }
+  return {
+    ...product,
+    ...child,
+    parentSku: product.sku.replace(new RegExp(`-${child.color}$`), ''),
+    name,
+    product_option: {
+      extension_attributes: {
+        configurable_item_options: product.configurable_options.map(option => {
+          return {
+            option_id: option.attribute_id,
+            option_value: child[option.attribute_code]
+          }
+        })
+      }
+    }
+  }
+}
 
 export const actions: ActionTree<WishlistState, RootState> = {
   clear (context) {
@@ -45,10 +75,48 @@ export const actions: ActionTree<WishlistState, RootState> = {
           action1: { label: i18n.t('OK') }
         })
       } else {
-        return result.wishlist_items.map(wishlistRecord => ({
-          ...wishlistRecord.product,
-          item_id: wishlistRecord.item_id
-        }))
+        // 1. Obtain skus
+        // 2. Fetch parents (not clones)
+        // 3. Iterate over skus and merge parents with childs with adding extra clone attrs
+
+        const skus = result.wishlist_items.map(({ product }) => product.sku)
+        const query = baseFilterProductsQuery({
+          id: 2
+        }, [], true).applyFilter({key: 'configurable_children.sku', value: {'in': skus}})
+
+        const { storeCode } = currentStoreView()
+        
+        let parents: any = await quickSearchByQuery({
+          query,
+          start: 0,
+          size: skus.length,
+          entityType: 'product',
+          sort: '',
+          storeCode: storeCode ? storeCode : null,
+          excludeFields: null,
+          includeFields: config.wordpressCms.includeFields
+        })
+
+        return result.wishlist_items.map(wishlistRecord => {
+          
+          const parent = parents && parents.items && parents.items.find(parent =>
+            parent.configurable_children
+            && parent.configurable_children.some(children =>
+              children.sku === wishlistRecord.product.sku
+              && children.color === +parent.clone_color_id
+            )
+          )
+
+          const children = parent.configurable_children.find(children =>
+            children.sku === wishlistRecord.product.sku
+            && children.color === +parent.clone_color_id
+          )
+
+          return {
+            ...mergeProductWithChild(parent, children),
+            item_id: wishlistRecord.item_id
+          }
+        })
       }
     }
   },
