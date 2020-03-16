@@ -14,27 +14,27 @@ import config from 'config'
 
 function mergeProductWithChild(product: any, child: any) {
   let name
-  if (product.clone_name) {
-    name = product.clone_name
-  } else {
-    name = `${product.name} ${optionLabel(rootStore.state.attribute, { attributeKey: 'color', optionId: +child.color })}`
-  }
-  return {
-    ...product,
-    ...child,
-    parentSku: product.sku.replace(new RegExp(`-${child.color}$`), ''),
-    name,
-    product_option: {
-      extension_attributes: {
-        configurable_item_options: product.configurable_options.map(option => {
-          return {
-            option_id: option.attribute_id,
-            option_value: child[option.attribute_code]
-          }
-        })
+      if (product.clone_name) {
+        name = product.clone_name
+      } else {
+        name = `${product.name} ${optionLabel(this.$store.state.attribute, { attributeKey: 'color', optionId: +product.clone_color_id })}`
       }
-    }
-  }
+      return {
+        ...product,
+        ...child,
+        ...(product && product.sku ? { parentSku: product.sku.replace(new RegExp(`-${product.clone_color_id}$`), '') } : {}),
+        name,
+        product_option: {
+          extension_attributes: {
+            configurable_item_options: product.configurable_options.map(option => {
+              return {
+                option_id: option.attribute_id,
+                option_value: child[option.attribute_code]
+              }
+            })
+          }
+        }
+      }
 }
 
 export const actions: ActionTree<WishlistState, RootState> = {

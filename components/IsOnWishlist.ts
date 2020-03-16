@@ -18,7 +18,23 @@ export const IsOnWishlist = {
     isOnWishlist () {
       return this.$store.state['wishlist'].items
         && this.$store.state['wishlist'].items
-        .some(product => product.parentSku === this.product.parentSku.replace(new RegExp(`-${product.clone_color_id}$`), ''))
+        .some(product => {
+          if (this.product.type_id == 'configurable') {
+            const parentSku = this.product.parentSku && this.product.parentSku.replace(new RegExp(`-${this.product.clone_color_id}$`), '')
+            const sku = this.product.sku && this.product.sku.replace(new RegExp(`-${this.product.clone_color_id}$`), '')
+
+            const options = []
+            if (parentSku) {
+              options.push(parentSku)
+            }
+            if (sku) {
+              options.push(sku)
+            }
+
+            return options.includes(product.parentSku)
+          }
+          return product.sku === this.product.sku
+        })
     }
   }
 }
