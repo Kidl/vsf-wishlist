@@ -20,7 +20,7 @@ export const IsOnWishlist = {
         && this.$store.state['wishlist'].items
         .some(product => {
           if (this.product.type_id == 'configurable') {
-            const parentSku = this.product.parentSku && this.product.parentSku.replace(new RegExp(`-${this.product.clone_color_id}$`), '')
+            const parentSku = this.product.parentSku
             const sku = this.product.sku && this.product.sku.replace(new RegExp(`-${this.product.clone_color_id}$`), '')
 
             const options = []
