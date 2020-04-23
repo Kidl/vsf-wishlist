@@ -17,12 +17,12 @@ function mergeProductWithChild(product: any, child: any) {
       if (product.clone_name) {
         name = product.clone_name
       } else {
-        name = `${product.name} ${optionLabel(this.$store.state.attribute, { attributeKey: 'color', optionId: +product.clone_color_id })}`
+        throw new Error('Indexer did not prepare product\'s name - ' + product.name)
       }
       return {
         ...product,
         ...child,
-        ...(product && product.sku ? { parentSku: product.sku.replace(new RegExp(`-${product.clone_color_id}$`), '') } : {}),
+        ...(product && product.sku ? { parentSku: product.originalParentSku || product.sku.replace(new RegExp(`-${product.clone_color_id}$`), '') } : {}),
         name,
         product_option: {
           extension_attributes: {
