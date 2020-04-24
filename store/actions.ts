@@ -54,8 +54,8 @@ export const actions: ActionTree<WishlistState, RootState> = {
       // Find approporiate product in the cache
       const productFromCache = storedItemsCache.find(product => product.sku === productFromServer.sku) || {}
       return {
-        ...productFromServer,
         ...productFromCache,
+        ...productFromServer,
         fromServer: true
       }
     })
@@ -138,7 +138,16 @@ export const actions: ActionTree<WishlistState, RootState> = {
             const corresponding = parents.items.find(item => item.clone_of == wishlistRecord.product.sku)
             if (corresponding) {
               return {
-                ...mergeProductWithChild(corresponding, corresponding.configurable_children.find(child => child.sku = corresponding.clone_of)),
+                ...mergeProductWithChild(corresponding, corresponding.configurable_children.find(child => {
+                  let condition = true
+                  if (child.color && corresponding.clone_color_id) {
+                    condition = condition && child.color == corresponding.clone_color_id
+                  }
+                  if (child.size && corresponding.clone_size_id) {
+                    condition = condition && child.size == corresponding.clone_size_id
+                  }
+                  return condition && corresponding.clone_of == child.sku
+                })),
                 item_id: wishlistRecord.item_id
               }
             }
