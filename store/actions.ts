@@ -79,57 +79,107 @@ export const actions: ActionTree<WishlistState, RootState> = {
         // 2. Fetch parents (not clones)
         // 3. Iterate over skus and merge parents with childs with adding extra clone attrs
 
-        const skus = result.wishlist_items.map(({ product }) => product.sku)
-        const query = baseFilterProductsQuery({
-          id: 2
-        }, [], true).applyFilter({key: 'configurable_children.sku', value: {'in': skus}})
+        const simpleSkus = result.wishlist_items.filter(({ product }) => product.type_id == 'simple').map(({ product }) => product.sku)
+        const bundleSkus = result.wishlist_items.filter(({ product }) => product.type_id == 'bundle').map(({ product }) => product.sku)
 
         const { storeCode } = currentStoreView()
-        
-        let parents: any = await quickSearchByQuery({
-          query,
-          start: 0,
-          size: 100,
-          entityType: 'product',
-          sort: '',
-          storeCode: storeCode ? storeCode : null,
-          excludeFields: null,
-          includeFields: config.wordpressCms.includeFields
-        })
+
+        let parents, bundles
+        if (simpleSkus.length > 0) {
+          const simpeQuery = baseFilterProductsQuery(0, [], true).applyFilter({key: 'clone_of.keyword', value: {'in': simpleSkus}})
+          parents = await quickSearchByQuery({
+            query: simpeQuery,
+            start: 0,
+            size: 100,
+            entityType: 'product',
+            sort: '',
+            storeCode: storeCode ? storeCode : null,
+            excludeFields: null,
+            includeFields: config.entities.productList.includeFields
+          })
+        }
+        if (bundleSkus.length > 0) {
+          const bundleQuery = baseFilterProductsQuery(0, [], true).applyFilter({key: 'sku', value: {'in': bundleSkus}})
+          bundles = await quickSearchByQuery({
+            query: bundleQuery,
+            start: 0,
+            size: 100,
+            entityType: 'product',
+            sort: '',
+            storeCode: storeCode ? storeCode : null,
+            excludeFields: null,
+            includeFields: config.entities.productList.includeFields
+          })
+        }
 
         return result.wishlist_items.map(wishlistRecord => {
 
-          const parent = parents && parents.items && parents.items.find(parent =>
-            parent.configurable_children
-            && parent.configurable_children.some(children =>
-              children.sku === wishlistRecord.product.sku
-              && children.color === +parent.clone_color_id
-            )
-          )
-
-          if (!parent) {
-            return {
-              ...wishlistRecord.product,
-              item_id: wishlistRecord.item_id
+          if (wishlistRecord.product.type_id == 'bundle') {
+            if (!bundles || !Array.isArray(bundles.items)) {
+              return {
+                ...wishlistRecord.product,
+                item_id: wishlistRecord.item_id
+              }
             }
-          }
-
-          const children = parent.configurable_children.find(children =>
-            children.sku === wishlistRecord.product.sku
-            && children.color === +parent.clone_color_id
-          )
-
-          if (!children) {
-            return {
-              ...wishlistRecord.product,
-              item_id: wishlistRecord.item_id
+            const corresponding = bundles.items.find(item => item.sku == wishlistRecord.product.sku)
+            if (corresponding) {
+              return {
+                ...corresponding,
+                item_id: wishlistRecord.item_id
+              }
+            }
+          } else if (wishlistRecord.product.type_id == 'simple') {
+            if (!parents || !Array.isArray(parents.items)) {
+              return {
+                ...wishlistRecord.product,
+                item_id: wishlistRecord.item_id
+              }
+            }
+            const corresponding = parents.items.find(item => item.clone_of == wishlistRecord.product.sku)
+            if (corresponding) {
+              return {
+                ...mergeProductWithChild(corresponding, corresponding.configurable_children.find(child => child.sku = corresponding.clone_of)),
+                item_id: wishlistRecord.item_id
+              }
             }
           }
 
           return {
-            ...mergeProductWithChild(parent, children),
+            ...wishlistRecord.product,
             item_id: wishlistRecord.item_id
           }
+
+          // const parent = parents && parents.items && parents.items.find(parent =>
+          //   parent.configurable_children
+          //   && parent.configurable_children.some(children =>
+          //     children.sku === wishlistRecord.product.sku
+          //     && children.color === +parent.clone_color_id
+          //   )
+          // )
+
+          // if (!parent) {
+          //   return {
+          //     ...wishlistRecord.product,
+          //     item_id: wishlistRecord.item_id
+          //   }
+          // }
+
+          // const children = parent.configurable_children.find(children =>
+          //   children.sku === wishlistRecord.product.sku
+          //   && children.color === +parent.clone_color_id
+          // )
+
+          // if (!children) {
+          //   return {
+          //     ...wishlistRecord.product,
+          //     item_id: wishlistRecord.item_id
+          //   }
+          // }
+
+          // return {
+          //   ...mergeProductWithChild(parent, children),
+          //   item_id: wishlistRecord.item_id
+          // }
         })
       }
     }
